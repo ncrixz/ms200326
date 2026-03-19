@@ -37,6 +37,14 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
+# Create required directories before composer runs post-install hooks
+RUN mkdir -p bootstrap/cache \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    && chmod -R 775 bootstrap/cache storage
+
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
