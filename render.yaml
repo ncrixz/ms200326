@@ -3,7 +3,7 @@ services:
     name: ultimate-pos
     env: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     healthCheckPath: /
     envVars:
       - key: APP_NAME
@@ -20,7 +20,7 @@ services:
           name: ultimate-pos
           property: host
       - key: DB_CONNECTION
-        value: mysql
+        value: pgsql
       - key: DB_HOST
         fromDatabase:
           name: ultimate-pos-db
@@ -56,6 +56,6 @@ services:
 
 databases:
   - name: ultimate-pos-db
-    plan: starter
+    plan: free
     databaseName: ultimate_pos
     user: ultimate_pos
