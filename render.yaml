@@ -49,10 +49,6 @@ services:
         value: sync
       - key: LOG_CHANNEL
         value: stderr
-    disk:
-      name: storage
-      mountPath: /var/www/html/storage
-      sizeGB: 10
 
 databases:
   - name: ultimate-pos-db
