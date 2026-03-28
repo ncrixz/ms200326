@@ -1,0 +1,138 @@
+envVarGroups:
+  - name: ultimatepos-shared
+    envVars:
+      - key: APP_NAME
+        value: "Ultimate POS"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: CACHE_DRIVER
+        value: redis
+      - key: SESSION_DRIVER
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_DATABASE
+        value: ultimatepos
+      - key: DB_USERNAME
+        value: posuser
+
+services:
+  # ── Web (nginx + php-fpm in one container) ────────────────────────────────
+  - type: web
+    name: ultimatepos-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    healthCheckPath: /
+    plan: standard
+    envVars:
+      - fromGroup: ultimatepos-shared
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        value: https://ultimatepos-web.onrender.com   # update to your actual URL
+      - key: DB_HOST
+        fromService:
+          name: ultimatepos-db
+          type: pserv
+          property: host
+      - key: DB_PORT
+        fromService:
+          name: ultimatepos-db
+          type: pserv
+          property: port
+      - key: DB_PASSWORD
+        fromService:
+          name: ultimatepos-db
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
+      - key: REDIS_HOST
+        fromService:
+          name: ultimatepos-redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: ultimatepos-redis
+          type: redis
+          property: port
+
+  # ── Queue Worker ──────────────────────────────────────────────────────────
+  - type: worker
+    name: ultimatepos-queue
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: starter
+    startCommand: php /var/www/html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    envVars:
+      - fromGroup: ultimatepos-shared
+      - key: APP_KEY
+        fromService:
+          name: ultimatepos-web
+          type: web
+          envVarKey: APP_KEY
+      - key: APP_URL
+        fromService:
+          name: ultimatepos-web
+          type: web
+          envVarKey: APP_URL
+      - key: DB_HOST
+        fromService:
+          name: ultimatepos-db
+          type: pserv
+          property: host
+      - key: DB_PORT
+        fromService:
+          name: ultimatepos-db
+          type: pserv
+          property: port
+      - key: DB_PASSWORD
+        fromService:
+          name: ultimatepos-db
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
+      - key: REDIS_HOST
+        fromService:
+          name: ultimatepos-redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: ultimatepos-redis
+          type: redis
+          property: port
+
+  # ── MySQL (private service + persistent disk) ─────────────────────────────
+  - type: pserv
+    name: ultimatepos-db
+    runtime: docker
+    image:
+      url: docker.io/library/mysql:8.0
+    plan: standard
+    envVars:
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+      - key: MYSQL_DATABASE
+        value: ultimatepos
+      - key: MYSQL_USER
+        value: posuser
+      - key: MYSQL_PASSWORD
+        generateValue: true
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  - type: redis
+    name: ultimatepos-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []   # private access only
